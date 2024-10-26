@@ -1,4 +1,4 @@
-## Project 1: Socket Programming		
+# Project 1: Socket Programming		
 
 Propose the development of a network application program by writing the objectives of the program. What is the program for ? What characteristics does your application have? Which Transport Layer service (UDP or TCP) do your application require? Why? Justify your choice.
 
@@ -11,22 +11,23 @@ Submit all the documents and your Client and Server programs. Towards the end of
 
 Due date: 2024/11/24
 
-## Mymemo 
-server.py
-```
-python3 server.py
-```
-
-client.py
-```
-python3 -m streamlit run streamlit_client.py
-```
-
-## Requirements
-
+## Installation
+### Install Dependencies
 ```
 pip install -r requirements.txt
 ```
+
+### Configure Environment Variables 
+Create a .env file in the root directory and populate it with the following:
+```
+OPENAI_API_VERSION= 
+AZURE_OPENAI_ENDPOINT= 
+AZURE_OPENAI_API_KEY= 
+AZURE_SPEECH_KEY= 
+AZURE_SPEECH_REGION= 
+```
+
+## Project Structure
 
 ```
 ├── server.py
@@ -50,6 +51,27 @@ pip install -r requirements.txt
 ├── requirements.txt
 
 ```
+
+## Usage 
+### Starting the Server
+Run the server using the following command:
+```
+python3 server.py
+```
+### Starting the Client
+Launch the client interface with Streamlit:
+```
+python3 -m streamlit run streamlit_client.py
+```
+
+## Modules Overview
+### Server Modules
+- client_handler.py: Manages individual client connections and handles their requests.
+- server_app.py: Initializes and runs the server application, managing overall server operations.
+- user_management.py: Handles user authentication, registration, and session management.
+### Client Modules
+- client_app.py: Contains the main client application logic, including user interface interactions.
+- client_utils.py: Provides utility functions for the client, such as message formatting and protocol handling.
 
 ## Todo
 - [x] Writing Protocol
