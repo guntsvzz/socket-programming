@@ -7,7 +7,7 @@ python3 server.py
 
 client.py
 ```
-python3 -m streamlit run streamlit_client.py.py
+python3 -m streamlit run streamlit_client.py
 ```
 
 ## Requirements

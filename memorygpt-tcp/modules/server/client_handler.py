@@ -5,12 +5,15 @@ import json
 import os
 from datetime import datetime, timezone
 import uuid
-import base64
-from modules.utils import bcolors
+
 from .user_management import (
     authenticate_user,
     register_user
 )
+
+from modules.speech import speech_to_text, text_to_speech  # Import speech functions
+from modules.generate_answer import base_model_chatbot  # Import chatbot function
+from modules.utils import bcolors  # Import bcolors for colored output
 
 BUFFER_SIZE = 4096
 
@@ -58,6 +61,20 @@ def send_response(conn, status_code, reason_phrase, headers, body):
         # If the body is a dictionary, serialize it to JSON
         body_bytes = json.dumps(body).encode('utf-8')
 
+    # Determine how to print the body based on Content-Type
+    content_type = headers.get("Content-Type", "")
+    if content_type.startswith("application/json") or content_type.startswith("text/plain"):
+        try:
+            body_to_print = body.decode('utf-8')
+        except Exception:
+            body_to_print = "<unable to decode body>"
+    else:
+        body_to_print = f"<binary data: {len(body_bytes)} bytes>"
+
+    # Print the response with colors
+    print(f"{bcolors.OKBLUE}HTTP Response Message:{bcolors.ENDC}")
+    print(f"{bcolors.OKGREEN}{response_line}{headers_lines}{body_to_print}{bcolors.ENDC}")
+
     # Send the response
     conn.sendall(response_line.encode('utf-8'))
     conn.sendall(headers_lines.encode('utf-8'))
@@ -67,7 +84,7 @@ def handle_client(conn):
     try:
         # Read the request line
         request_line = read_line(conn)
-        # print(f"Request Line: {request_line}")
+        print(f"Request Line: {request_line}")
 
         # Read headers
         headers, headers_raw = read_headers(conn)
@@ -93,15 +110,14 @@ def handle_client(conn):
         else:
             body_decoded = '<binary data>'
 
-        # Reconstruct and print the full HTTP request message
+        # Reconstruct and print the full HTTP request message with colors
         full_request = request_line + '\r\n' + headers_raw + '\r\n'
         if path in ['/login', '/register']:
             full_request += body_decoded
         print(f"{bcolors.OKBLUE}HTTP Request Message:{bcolors.ENDC}")
         print(f"{bcolors.OKGREEN}{full_request}{bcolors.ENDC}")
 
-        # Process the request as per your existing logic
-
+        # Process the request
         if path in ['/login', '/register']:
             body_data = json.loads(body_decoded)
 
@@ -199,34 +215,16 @@ def handle_client(conn):
 
             if path == "/upload":
                 # Save the received voice file
-                with open("received_voice.wav", "wb") as f:
+                received_voice_path = "received_voice.wav"
+                with open(received_voice_path, "wb") as f:
                     f.write(body)
 
                 print(f"Voice file received from {username}. Total bytes: {len(body)}")
 
-                # Send back base64-encoded audio data as a response
-                BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                file_path = os.path.join(BASE_DIR, 'assets', 'audio', 'return_voice.wav')
-                if os.path.exists(file_path):
-                    with open(file_path, "rb") as f:
-                        file_data = f.read()
-                    # Encode the audio data to base64
-                    encoded_data = base64.b64encode(file_data).decode('utf-8')
-                    body_bytes = encoded_data.encode('utf-8')
-                    # Prepare headers
-                    response_headers = {
-                        "Date": datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT'),
-                        "Server": "SimplePythonServer",
-                        "Content-Type": "text/plain",
-                        "Content-Length": str(len(body_bytes)),
-                        "Connection": "keep-alive"
-                    }
-                    # Send response
-                    send_response(conn, 200, "OK", response_headers, body_bytes)
-                    print(f"Returned base64-encoded voice data to {username}.")
-                else:
-                    # File not found response
-                    response_body = {"message": "Voice file not found"}
+                # Perform speech-to-text
+                transcript = speech_to_text(received_voice_path)
+                if not transcript:
+                    response_body = {"message": "Failed to transcribe audio"}
                     body_bytes = json.dumps(response_body).encode('utf-8')
                     response_headers = {
                         "Content-Type": "application/json",
@@ -234,7 +232,64 @@ def handle_client(conn):
                         "Date": datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT'),
                         "Connection": "keep-alive"
                     }
-                    send_response(conn, 404, "Not Found", response_headers, body_bytes)
+                    send_response(conn, 500, "Internal Server Error", response_headers, body_bytes)
+                    conn.close()
+                    return
+
+                # Generate chatbot response
+                messages = [{"role": "user", "content": transcript}]
+                response_text = base_model_chatbot(messages)
+
+                # Convert response text to speech
+                audio_file_path = text_to_speech(response_text)
+                if not audio_file_path or not os.path.exists(audio_file_path):
+                    response_body = {"message": "Failed to generate audio response"}
+                    body_bytes = json.dumps(response_body).encode('utf-8')
+                    response_headers = {
+                        "Content-Type": "application/json",
+                        "Content-Length": str(len(body_bytes)),
+                        "Date": datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT'),
+                        "Connection": "keep-alive"
+                    }
+                    send_response(conn, 500, "Internal Server Error", response_headers, body_bytes)
+                    conn.close()
+                    return
+
+                # Read the audio file to send back
+                with open(audio_file_path, "rb") as f:
+                    audio_data = f.read()
+
+                # Prepare headers
+                response_headers = {
+                    "Date": datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT'),
+                    "Server": "SimplePythonServer",
+                    "Content-Type": "audio/wav",
+                    "Content-Length": str(len(audio_data)),
+                    "Connection": "keep-alive",
+                    "X-Response-Text": response_text,          # Bot's response text
+                    "X-Transcribed-Text": transcript           # User's transcribed text
+                }
+
+                # Send response with colored output
+                print(f"{bcolors.OKBLUE}HTTP Response Message:{bcolors.ENDC}")
+                print(f"{bcolors.OKGREEN}HTTP/1.1 200 OK\r\n" +
+                      f"Date: {response_headers['Date']}\r\n" +
+                      f"Server: {response_headers['Server']}\r\n" +
+                      f"Content-Type: {response_headers['Content-Type']}\r\n" +
+                      f"Content-Length: {response_headers['Content-Length']}\r\n" +
+                      f"Connection: {response_headers['Connection']}\r\n" +
+                      f"X-Response-Text: {response_headers['X-Response-Text']}\r\n" +
+                      f"X-Transcribed-Text: {response_headers['X-Transcribed-Text']}\r\n\r\n" +
+                      f"{len(audio_data)} bytes of audio data.{bcolors.ENDC}")
+
+                # Send response
+                send_response(conn, 200, "OK", response_headers, audio_data)
+                print(f"Sent audio response to {username}.")
+
+                # Clean up temporary files
+                os.remove(received_voice_path)
+                os.remove(audio_file_path)
+
             else:
                 # Invalid path after login
                 response_body = {"message": "Invalid request after login"}

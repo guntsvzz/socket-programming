@@ -2,6 +2,7 @@
 
 import socket
 import json
+from modules.utils import bcolors  # Import bcolors for colored output
 
 BUFFER_SIZE = 4096
 
@@ -53,6 +54,10 @@ def send_authentication_request(action, username, password, student_id=None, hos
         body = json.dumps(body_data)
         headers = {
             "Host": host,
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:80.0) Gecko/20100101 Firefox/80.0",
+            "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
             "Content-Type": "application/json",
             "Content-Length": str(len(body)),
             "Connection": "keep-alive"
@@ -65,9 +70,9 @@ def send_authentication_request(action, username, password, student_id=None, hos
         request_message += "\r\n"
         request_message += body
 
-        # Print the HTTP request message
-        print("HTTP Request Message:")
-        print(request_message)
+        # Print the HTTP request message with colors
+        print(f"{bcolors.OKBLUE}HTTP Request Message:{bcolors.ENDC}")
+        print(f"{bcolors.OKGREEN}{request_message}{bcolors.ENDC}")
 
         # Send the request
         client_socket.sendall(request_message.encode('utf-8'))
@@ -129,6 +134,10 @@ def send_voice_file_tcp(audio_data, token, host='localhost', port=8888):
         request_line = "POST /upload HTTP/1.1"
         headers = {
             "Host": host,
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:80.0) Gecko/20100101 Firefox/80.0",
+            "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
             "Content-Type": "audio/wav",
             "Content-Length": str(len(audio_data)),
             "Authorization": token,
@@ -141,9 +150,9 @@ def send_voice_file_tcp(audio_data, token, host='localhost', port=8888):
             request_message += f"{header_name}: {header_value}\r\n"
         request_message += "\r\n"
 
-        # Print the HTTP request message
-        print("HTTP Request Message:")
-        print(request_message)
+        # Print the HTTP request message with colors
+        print(f"{bcolors.OKBLUE}HTTP Request Message:{bcolors.ENDC}")
+        print(f"{bcolors.OKGREEN}{request_message}{bcolors.ENDC}")
 
         # Send the request
         client_socket.sendall(request_message.encode('utf-8'))
@@ -172,6 +181,8 @@ def send_voice_file_tcp(audio_data, token, host='localhost', port=8888):
         except ValueError:
             content_length = 0
         content_type = response_headers.get('content-type', '')
+        response_text = response_headers.get('x-response-text', '')         # Bot's response text
+        transcribed_text = response_headers.get('x-transcribed-text', '')   # User's transcribed text
 
         if content_length > 0:
             body = b''
@@ -184,11 +195,15 @@ def send_voice_file_tcp(audio_data, token, host='localhost', port=8888):
                 remaining -= len(chunk)
             client_socket.close()
 
-            if content_type == 'text/plain':
-                # Decode the base64-encoded data
+            if content_type == 'audio/wav':
+                # Return the binary audio data and the transcribed texts
+                return status_code, body, response_headers, status_line
+            elif content_type == 'text/plain':
+                # Decode base64-encoded data
                 encoded_data = body.decode('utf-8')
                 return status_code, encoded_data, response_headers, status_line
             else:
+                # Assume it's JSON with an error message
                 response_data = json.loads(body.decode('utf-8'))
                 message = response_data.get('message', '')
                 return status_code, message, response_headers, status_line

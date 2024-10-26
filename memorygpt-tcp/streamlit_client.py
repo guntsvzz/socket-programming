@@ -1,73 +1,36 @@
 # streamlit_client.py
 
-print("Starting Streamlit client application")
-
 import streamlit as st
-from st_audiorec import st_audiorec
+from modules.client.client_utils import send_voice_file_tcp
 from modules.utils import bcolors
-from modules.client.client_utils import send_authentication_request, send_voice_file_tcp
-import base64
+from authentication import authentication_flow  # Import the authentication_flow from the new file
+from st_audiorec import st_audiorec  # Assuming you have this component or similar
+import os
 
-def authentication_flow():
-    print("Entered authentication_flow")
-    st.sidebar.title("Login / Register")
-    menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
+def chat_interface():
+    print("Entered chat_interface")
+    st.title("MemoryGPT")
 
-    if menu == "Login":
-        username = st.sidebar.text_input("User")
-        password = st.sidebar.text_input("Password", type="password")
-        if st.sidebar.button("Login"):
-            status_code, message, headers, auth_header, status_line = send_authentication_request('login', username, password)
-            print(f"{bcolors.OKBLUE}Login response: {status_code}, {message}{bcolors.ENDC}")
-            print(f"{bcolors.OKGREEN}{status_line}{bcolors.ENDC}")
-            if headers:
-                for header, value in headers.items():
-                    print(f"{bcolors.OKGREEN}{header}: {value}{bcolors.ENDC}")
-            else:
-                print("No headers received.")
-            print(f"{bcolors.WARNING}Data Returned: {message}{bcolors.ENDC}")
-            if status_code == '200':
-                st.session_state['logged_in'] = True
-                st.session_state['username'] = username
-                st.session_state['auth_token'] = auth_header  # Store the token
-                st.sidebar.success(message)
-                st.experimental_rerun()
-            else:
-                st.sidebar.error(message)
-    elif menu == "Register":
-        student_id = st.sidebar.text_input("Student ID")
-        username = st.sidebar.text_input("User")
-        password = st.sidebar.text_input("Password", type="password")
-        if st.sidebar.button("Register"):
-            status_code, message, headers, _, status_line = send_authentication_request('register', username, password, student_id=student_id)
-            print(f"{bcolors.OKBLUE}Registration response: {status_code}, {message}{bcolors.ENDC}")
-            print(f"{bcolors.OKGREEN}{status_line}{bcolors.ENDC}")
-            if headers:
-                for header, value in headers.items():
-                    print(f"{bcolors.OKGREEN}{header}: {value}{bcolors.ENDC}")
-                print(f"{bcolors.WARNING}Data Returned: {message}{bcolors.ENDC}")
-            else:
-                print("No headers received.")
-            if status_code == '200':
-                st.sidebar.success(message)
-            else:
-                st.sidebar.error(message)
+    if 'messages' not in st.session_state:
+        st.session_state['messages'] = []
 
-def voice_recorder():
-    print("Entered voice_recorder")
-    st.title("Voice Recorder")
+    # Create footer container for the microphone
+    footer_container = st.container()
+    with footer_container:
+        audio_bytes = st_audiorec()
 
-    audio_data = st_audiorec()
+    # Display chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
 
-    if audio_data is not None:
-        st.audio(audio_data, format='audio/wav')
-        st.write(f"Recorded audio data size: {len(audio_data)} bytes")
-
-        if st.button("Send to server"):
-            auth_token = st.session_state.get('auth_token')
-            if auth_token:
-                token = auth_token
-                status_code, response, headers, status_line = send_voice_file_tcp(audio_data, token)
+    # Process audio input
+    if audio_bytes:
+        auth_token = st.session_state.get('auth_token')
+        if auth_token:
+            with st.spinner("Processing..."):
+                # Send the audio to the server
+                status_code, response, headers, status_line = send_voice_file_tcp(audio_bytes, auth_token)
                 print(f"{bcolors.OKBLUE}Voice file upload response: {status_code}{bcolors.ENDC}")
                 if headers:
                     print(f"{bcolors.OKGREEN}{status_line}{bcolors.ENDC}")
@@ -77,27 +40,42 @@ def voice_recorder():
                     print("No headers received.")
 
                 if status_code == '200':
-                    # Decode base64-encoded data
-                    decoded_data = base64.b64decode(response)
-                    with open("received_return_voice.wav", "wb") as f:
-                        f.write(decoded_data)
-                    st.success("Received processed voice from server.")
-                    st.audio("received_return_voice.wav", format='audio/wav')
-                    # Print base64-encoded data
-                    print(f"{bcolors.WARNING}Data Returned (Base64): {response}{bcolors.ENDC}")
+                    # Extract the transcribed text from headers
+                    transcribed_text = headers.get('x-transcribed-text', "No transcribed text received.")
+                    response_text = headers.get('x-response-text', "No response text received.")
+
+                    # Append the user's transcribed message to the chat
+                    st.session_state.messages.append({"role": "user", "content": transcribed_text})
+
+                    # Save the received audio response from the server
+                    received_audio_path = "received_response.wav"
+                    with open(received_audio_path, "wb") as f:
+                        f.write(response)
+
+                    # Display the user's message
+                    with st.chat_message("user"):
+                        st.write(transcribed_text)
+
+                    # Display the assistant's message with audio and transcribed text
+                    with st.chat_message("assistant"):
+                        st.audio(received_audio_path, format='audio/wav')
+                        st.write(response_text)  # Display the bot's transcribed response
+
+                    # Add the assistant's message to the session state
+                    st.session_state.messages.append({"role": "assistant", "content": response_text})
                 else:
                     print(f"Error status code received: {status_code}")
                     print(f"Error response: {response}")
-                    # print(f"{bcolors.WARNING}Data Returned: {response}{bcolors.ENDC}")
                     st.error(response)
-            else:
-                st.error("No authentication token. Please log in again.")
+        else:
+            st.error("No authentication token. Please log in again.")
 
 def logout():
     print("User logged out")
     st.session_state['logged_in'] = False
     st.session_state['username'] = None
     st.session_state['auth_token'] = None
+    st.session_state['messages'] = []
     st.info("You have been logged out.")
     st.experimental_rerun()
 
@@ -109,6 +87,7 @@ def main():
         st.session_state['logged_in'] = False
         st.session_state['username'] = None
         st.session_state['auth_token'] = None
+        st.session_state['messages'] = []
 
     if not st.session_state['logged_in']:
         authentication_flow()
@@ -118,7 +97,7 @@ def main():
         if st.sidebar.button("Logout"):
             logout()
 
-        voice_recorder()
+        chat_interface()
 
 if __name__ == '__main__':
     print("Executing main")

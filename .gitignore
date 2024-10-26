@@ -4,3 +4,6 @@ https_voice
 classroom
 __pycache__
 .env
+openai-conversational-voice-chatbot-main
+memorygpt-tcp/assets/audio
+memorygpt-tcp/assets/database
