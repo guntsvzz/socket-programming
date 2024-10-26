@@ -12,3 +12,47 @@ Submit all the documents and your Client and Server programs. Towards the end of
 Due date: 2024/11/24
 
 ## Mymemo 
+server.py
+```
+python3 server.py
+```
+
+client.py
+```
+python3 -m streamlit run streamlit_client.py
+```
+
+## Requirements
+
+```
+pip install -r requirements.txt
+```
+
+```
+├── server.py
+├── streamlit_client.py
+├── modules/
+│   ├── __init__.py
+│   ├── server/
+│   │   ├── __init__.py
+│   │   ├── client_handler.py
+│   │   ├── server_app.py
+│   │   └── user_management.py
+│   └── client/
+│       ├── __init__.py
+│       ├── client_app.py
+│       └── client_utils.py
+├── assets/
+│   ├── audio/
+│   │   └── return_voice.wav
+│   └── database/
+│       └── user_data.json
+├── requirements.txt
+
+```
+
+## Todo
+- [x] Writing Protocol
+- [x] Speech to Text and Text to Speech
+- [ ] User database 
+- [ ] Add Memory

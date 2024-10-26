@@ -97,7 +97,7 @@ def main():
         if st.sidebar.button("Logout"):
             logout()
 
-        chat_interface()
+    chat_interface()
 
 if __name__ == '__main__':
     print("Executing main")

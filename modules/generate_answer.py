@@ -15,7 +15,7 @@ from langchain_community.chat_models import ChatOpenAI, AzureChatOpenAI
 from langchain.chains import RetrievalQA
 from langchain.memory import ConversationBufferMemory
 
-load_dotenv("../.env")
+load_dotenv(".env")
 api_key = os.getenv("AZURE_OPENAI_API_KEY")
 azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 api_version = os.getenv("OPENAI_API_VERSION")

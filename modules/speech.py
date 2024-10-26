@@ -10,7 +10,7 @@ from openai import AzureOpenAI
 from dotenv import load_dotenv
 import azure.cognitiveservices.speech as speechsdk
 
-load_dotenv("../.env")
+load_dotenv(".env")
 
 # Ensure the environment variables are set correctly
 speech_key = os.environ.get('AZURE_SPEECH_KEY')
