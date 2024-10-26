@@ -67,10 +67,8 @@ python3 -m streamlit run streamlit_client.py
 ## Modules Overview
 ### Server Modules
 - client_handler.py: Manages individual client connections and handles their requests.
-- server_app.py: Initializes and runs the server application, managing overall server operations.
 - user_management.py: Handles user authentication, registration, and session management.
 ### Client Modules
-- client_app.py: Contains the main client application logic, including user interface interactions.
 - client_utils.py: Provides utility functions for the client, such as message formatting and protocol handling.
 
 ## Todo
