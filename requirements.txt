@@ -1,0 +1,7 @@
+streamlit
+streamlit-audiorec
+langchain
+openai
+langchain-openai
+langchain-core
+langchain-community
