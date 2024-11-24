@@ -72,7 +72,10 @@ python3 -m streamlit run streamlit_client.py
 - client_utils.py: Provides utility functions for the client, such as message formatting and protocol handling.
 
 ## Todo
+User Aspect
 - [x] Writing Protocol
+- [ ] Encryption password
+LLM Aspect
 - [x] Speech to Text and Text to Speech
-- [ ] User database 
+- [ ] Text Only
 - [ ] Add Memory

@@ -1,7 +1,8 @@
-streamlit
-streamlit-audiorec
-langchain
-openai
-langchain-openai
-langchain-core
-langchain-community
+openai==1.52.0
+langchain==0.1.20
+langchain-openai==0.1.7
+langchain-core==0.1.53
+langchain-community==0.0.38
+pydantic==1.10.13
+PyQt5==5.15.11
+azure-cognitiveservices-speech==1.40.0
