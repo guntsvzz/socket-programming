@@ -4,7 +4,7 @@ import json
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QStackedWidget, QTextEdit
 )
-
+import re
 # Global variable to store cookies
 cookies = {}
 
@@ -175,117 +175,82 @@ class ChatPage(QWidget):
         self.setLayout(layout)
 
     def send_message(self):
+        # Get the user input
         message = self.user_input.text()
         if not message:
             return  # Don't send empty messages
 
-        # Display message in chat area
+        # Display user message in chat area
         self.chat_display.append(f"You: {message}")
-        
+
+        # Use an instance variable to retain the question state
+        if not hasattr(self, 'current_question'):
+            self.current_question = None  # Initialize if not already set
+
         # Send the message to the server
-        response = send_request('send_message', {'message': message})
-        
-        # Show server response in the chat display
-        self.chat_display.append(f"Server: {response}")
-        
+        response = send_request('qa_interview', {
+            'username': 'gun',  # Replace with the actual username
+            'question': self.current_question or "Default question",  # Use stored question or default
+            'answer': message  # User's answer
+        })
+
+        # Extract the new question from the response
+        match = re.search(r'"question":\s*"(.*?)"', response)
+        if match:
+            self.current_question = match.group(1)  # Update the current question
+            print(self.current_question)  # Debugging: print the current question
+
+        # Show the server's response in the chat area
+        self.chat_display.append(f"Server: {self.current_question}")
+
         # Clear the input field
         self.user_input.clear()
 
-    def __init__(self):
-        super().__init__()
-        
-        layout = QVBoxLayout()
-        self.chat_display = QTextEdit(self)
-        self.chat_display.setReadOnly(True)
-        layout.addWidget(self.chat_display)
-        
-        self.message_input = QLineEdit(self)
-        self.message_input.setPlaceholderText("Type your message...")
-        layout.addWidget(self.message_input)
-        
-        self.send_button = QPushButton("Send")
-        self.send_button.clicked.connect(self.send_text)
-        layout.addWidget(self.send_button)
-        
-        self.setLayout(layout)
 
-    def send_text(self):
-        username = "fixed_username"  # Replace with actual username handling logic
-        text_message = self.message_input.text()
-        response = send_request('send_text', {'username': username, 'text_message': text_message})
+    # def send_text(self):
+    #     username = "gun"  # Replace with actual username handling logic
+    #     text_message = self.message_input.text()
+    #     # response = send_request('send_text', {'username': username, 'text_message': text_message})
         
-        # Display user's message
-        self.chat_display.append(f"You: {text_message}")
+    #     # Send the message to the 'qa_interview' endpoint
+    #     response = send_request('qa_interview', {
+    #         'username': 'gun',  # Replace with the actual username
+    #         'question': text_message,  # The user's message
+    #         'answer': text_message    # The answer (if applicable)
+    #     })
 
-        # Attempt to extract JSON content from the response
-        system_message = "Error: Unable to parse response from server"  # Default error message
-        response_lines = response.splitlines()
-        json_data = ""
+    #     # Display user's message
+    #     self.chat_display.append(f"You: {text_message}")
 
-        # Try to find the JSON part in the response
-        for line in response_lines:
-            if line.startswith("{") and line.endswith("}"):
-                json_data = line
-                break
-            elif line.startswith("{"):
-                json_data = line  # Start of JSON data
-            elif line.endswith("}") and json_data:
-                json_data += line  # End of JSON data
-                break
-            elif json_data:
-                json_data += line  # Continue appending JSON data
+    #     # Attempt to extract JSON content from the response
+    #     system_message = "Error: Unable to parse response from server"  # Default error message
+    #     response_lines = response.splitlines()
+    #     json_data = ""
 
-        # Parse the found JSON data
-        try:
-            if json_data:
-                response_json = json.loads(json_data)
-                system_message = response_json.get("message", "No message")
-        except json.JSONDecodeError:
-            system_message = "Error: Invalid JSON response from server"
+    #     # Try to find the JSON part in the response
+    #     for line in response_lines:
+    #         if line.startswith("{") and line.endswith("}"):
+    #             json_data = line
+    #             break
+    #         elif line.startswith("{"):
+    #             json_data = line  # Start of JSON data
+    #         elif line.endswith("}") and json_data:
+    #             json_data += line  # End of JSON data
+    #             break
+    #         elif json_data:
+    #             json_data += line  # Continue appending JSON data
 
-        # Display system's response message
-        self.chat_display.append(f"System: {system_message}")
-        self.message_input.clear()
+    #     # Parse the found JSON data
+    #     try:
+    #         if json_data:
+    #             response_json = json.loads(json_data)
+    #             system_message = response_json.get("message", "No message")
+    #     except json.JSONDecodeError:
+    #         system_message = "Error: Invalid JSON response from server"
 
-    def __init__(self):
-        super().__init__()
-        
-        layout = QVBoxLayout()
-        self.chat_display = QTextEdit(self)
-        self.chat_display.setReadOnly(True)
-        layout.addWidget(self.chat_display)
-        
-        self.message_input = QLineEdit(self)
-        self.message_input.setPlaceholderText("Type your message...")
-        layout.addWidget(self.message_input)
-        
-        self.send_button = QPushButton("Send")
-        self.send_button.clicked.connect(self.send_text)
-        layout.addWidget(self.send_button)
-        
-        self.setLayout(layout)
-
-    def send_text(self):
-        username = "fixed_username"  # Replace with actual username handling logic
-        text_message = self.message_input.text()
-        response = send_request('send_text', {'username': username, 'text_message': text_message})
-        
-        # Display user's message
-        self.chat_display.append(f"You: {text_message}")
-
-        # Attempt to extract JSON content
-        try:
-            # Locate JSON data by finding the part after "\r\n\r\n"
-            _, json_content = response.split("\r\n\r\n", 1)
-            response_json = json.loads(json_content)
-            system_message = response_json.get("message", "No message")
-        except (json.JSONDecodeError, IndexError):
-            system_message = "Error: Unable to parse response from server"
-
-        # Display system's response message
-        self.chat_display.append(f"System: {system_message}")
-        self.message_input.clear()
-
+    #     # Display system's response message
+    #     self.chat_display.append(f"System: {system_message}")
+    #     self.message_input.clear()
 class MainWindow(QStackedWidget):
     def __init__(self):
         super().__init__()

@@ -6,6 +6,7 @@ from resume import handle_upload_resume
 from job_description import handle_upload_job_description
 from text import handle_text
 from interview_question import handle_interview
+from ask_question import handle_qa_interview
 from datetime import datetime
 import json
 import os
@@ -83,6 +84,9 @@ def handle_client(client_socket):
             elif request_line.startswith("POST /send_text"):
                 status_code, message = handle_text(body) #"200 OK", f"Received text: {body.get('text_message')}"
 
+            elif request_line.startswith("POST /qa_interview"):
+                status_code, message = handle_qa_interview(body)  # Call the QA interview handler
+                
             else:
                 status_code, message = "404 Not Found", "Invalid action"
 
