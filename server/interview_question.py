@@ -79,8 +79,7 @@ def handle_interview(body):
         }
         interview_questions = question_chain.invoke({"input_data": input_data})
         
-        
-            # Load the existing user data
+        # Load the existing user data
         with open(file_path, 'r') as f:
             user_data = json.load(f)
         

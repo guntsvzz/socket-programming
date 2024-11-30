@@ -118,7 +118,8 @@ class UploadPage(QWidget):
 
         # Button for next page
         self.next_page_button = QPushButton("Next Page")
-        self.next_page_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2))
+        # self.next_page_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2))
+        self.next_page_button.clicked.connect(self.post_interview_question)
         layout.addWidget(self.next_page_button)
 
         self.setLayout(layout)
@@ -150,7 +151,18 @@ class UploadPage(QWidget):
                 'filename': file_path  # Only send the file path, not the content
             })
             print(response)  # For debugging
+            
+    def post_interview_question(self):
+        # Send a POST request to the interview_question endpoint
+        username = self.username_input.text()
+        response = send_request('interview_question', {
+            'username': username
+        })
+        print(response)  # Debugging: print the response
 
+        # Move to the next page
+        self.stacked_widget.setCurrentIndex(2)
+        
 class ChatPage(QWidget):
     def __init__(self):
         super().__init__()
